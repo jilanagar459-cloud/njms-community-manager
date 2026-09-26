@@ -4,7 +4,10 @@ from datetime import datetime
 app=Flask(__name__); app.secret_key=os.environ.get('SECRET_KEY','change-this-secret-key'); ADMIN_PASSWORD=os.environ.get('ADMIN_PASSWORD','admin123')
 DATA=os.path.join(os.path.dirname(__file__),'registrations.json')
 with open(DATA,encoding='utf-8') as f: registrations=json.load(f)
-by_no={int(x['registration_no']):x for x in registrations}
+# The camp has 289 registration numbers. Only non-sensitive registration metadata is stored in the public deployment.
+for n in range(1,290):
+ if not any(int(x['registration_no'])==n for x in registrations): registrations.append({'registration_no':n,'name':'','time_slot':'','status':'Registered'})
+registrations.sort(key=lambda x:int(x['registration_no'])); by_no={int(x['registration_no']):x for x in registrations}
 STATUSES=['Registered','Waiting','In Progress','Completed','No Show']
 def save():
  with open(DATA,'w',encoding='utf-8') as f: json.dump(registrations,f,ensure_ascii=False,separators=(',',':'))
@@ -27,7 +30,7 @@ def logout(): session.clear(); return jsonify(ok=True)
 def api_stats(): return jsonify(stats())
 @app.get('/api/registrations')
 def api_regs():
- q=request.args.get('q','').strip().lower(); st=request.args.get('status',''); return jsonify([x for x in registrations if (not st or x['status']==st) and (not q or q==str(x['registration_no']).lower() or q in x['name'].lower() or q in x.get('contact','').lower())])
+ q=request.args.get('q','').strip().lower(); st=request.args.get('status',''); return jsonify([x for x in registrations if (not st or x['status']==st) and (not q or q==str(x['registration_no']).lower() or q in x.get('name','').lower())])
 @app.get('/api/registration/<int:n>')
 def api_reg(n):
  x=by_no.get(n); return jsonify(x) if x else (jsonify(error='Not found'),404)
